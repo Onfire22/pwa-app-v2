@@ -1,0 +1,22 @@
+.header {
+	padding: 10px;
+}
+
+.header__menu {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.header__link {
+	border: 1px solid var(--border);
+	border-radius: 5px;
+	padding: 5px 10px;
+	text-decoration: none;
+	color: var(--text);
+}
+
+.header__link_active {
+	background-color: var(--border);
+	color: #fff;
+}

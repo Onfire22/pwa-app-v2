@@ -1,0 +1,13 @@
+.data {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 20px;
+}
+
+.data__item {
+	text-align: start;
+	border: 1px solid var(--border);
+	padding: 5px;
+	border-radius: 5px;
+}
