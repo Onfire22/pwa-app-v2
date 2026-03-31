@@ -1,10 +1,12 @@
 .header {
 	padding: 10px;
+	border-bottom: 1px solid var(--border);
 }
 
 .header__menu {
 	display: flex;
 	align-items: center;
+	flex-direction: column;
 	gap: 10px;
 }
 
