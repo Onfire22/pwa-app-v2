@@ -1,0 +1,185 @@
+import { precacheAndRoute } from 'workbox-precaching';
+
+precacheAndRoute(self.__WB_MANIFEST);
+
+const STATIC_CACHE = 's-cache-v1'; // статические данные
+const DYNAMIC_CACHE = 'd-cache-v1'; // динамические данные
+
+self.addEventListener('activate', (event) => {
+	event.waitUntil(
+		caches.keys().then((keys) => {
+			console.log('Активируем SW, кеши:', keys);
+			return Promise.all(
+				keys
+					.filter((key) => ![STATIC_CACHE, DYNAMIC_CACHE].includes(key))
+					.map((key) => {
+						return caches.delete(key);
+					}),
+			);
+		}),
+	);
+});
+
+function openDatabase() {
+	return new Promise((resolve, reject) => {
+		const request = indexedDB.open('SyncDB', 1);
+
+		request.onupgradeneeded = (event) => {
+			const db = event.target.result;
+			if (!db.objectStoreNames.contains('requests')) {
+				db.createObjectStore('requests', { keyPath: 'id', autoIncrement: true });
+			}
+		};
+
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+}
+
+const getPendingRequests = async () => {
+	const db = await openDatabase();
+	if (!db) throw new Error('Database not initialized');
+
+	return new Promise((resolve, reject) => {
+		const tx = db.transaction('requests', 'readonly');
+		const store = tx.objectStore('requests');
+		const request = store.getAll();
+
+		request.onsuccess = () => resolve(request.result);
+		request.onerror = () => reject(request.error);
+	});
+};
+
+const removePendingRequest = async (id) => {
+	const db = await openDatabase();
+	if (!db) throw new Error('Database not initialized');
+
+	const tx = db.transaction('requests', 'readwrite');
+	const store = tx.objectStore('requests');
+
+	await store.delete(id);
+	await tx.done;
+};
+
+const syncData = async () => {
+	const requests = await getPendingRequests();
+	if (requests?.length) {
+		const updatedRequests = [];
+		for (const req of requests) {
+			try {
+				const response = await fetch(req.url, {
+					method: req.method,
+					body: req.body,
+					headers: req.headers,
+				});
+				const data = await response.json();
+				updatedRequests.push(data);
+				await removePendingRequest(req.id);
+			} catch (error) {
+				console.error('Sync failed:', error);
+			}
+		}
+		self.clients.matchAll().then((clients) => {
+			clients.forEach((client) => {
+				client.postMessage({ type: 'SYNC_COMPLETE', data: updatedRequests });
+			});
+		});
+	}
+};
+
+self.addEventListener('sync', (event) => {
+	if (event.tag === 'sync-data') {
+		event.waitUntil(syncData());
+	}
+});
+
+self.addEventListener('push', (e) => {
+	if (e.data) {
+		const data = e.data.json();
+		self.registration.showNotification(data.title, {
+			body: data.body,
+			icon: data.icon || 'https://onfire22.github.io/pwa/icons/message.svg',
+			vibrate: [200, 100, 200],
+			priority: e.data.priority,
+			requireInteraction: e.data.requireInteraction,
+			actions: [
+				{ action: 'open', title: 'Открыть' },
+				{ action: 'close', title: 'Закрыть' },
+			],
+		});
+	}
+});
+
+// сервисворкер для уведомлений
+self.addEventListener('message', async (e) => {
+	if (e.data.type === 'SHOW_NOTIFICATION') {
+		try {
+			await self.registration.showNotification(e.data.title, {
+				body: e.data.body,
+				icon: e.data.icon,
+				requireInteraction: e.data.requireInteraction,
+				vibrate: e.data.vibrate,
+				priority: e.data.priority,
+				actions: [
+					{ action: 'open', title: 'Открыть' },
+					{ action: 'close', title: 'Закрыть' },
+				],
+			});
+		} catch {
+			console.log('error');
+		}
+	} else {
+		console.warn('Неизвестный тип сообщения:', e.data.type);
+	}
+});
+
+// сервисворкер для кеширования
+self.addEventListener('fetch', (e) => {
+	const { request } = e;
+
+	e.respondWith(
+		(async () => {
+			try {
+				const response = await fetch(request);
+				if (!response || response.status !== 200) throw new Error('Плохой ответ');
+
+				const cache = await caches.open(DYNAMIC_CACHE);
+				cache.put(request, response.clone());
+
+				return response;
+			} catch {
+				console.warn('Нет интернета, загружаем из кеша:', request.url);
+				const cached = await caches.match(request);
+				return (
+					cached ||
+					new Response(JSON.stringify({ error: 'Нет интернета' }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' },
+					})
+				);
+			}
+		})(),
+	);
+});
+
+// сервисворкеры для фоновой загрузки
+self.addEventListener('backgroundfetchsuccess', async (event) => {
+	const cache = await caches.open('background-fetch-cache');
+	const records = await event.registration.matchAll();
+
+	for (const record of records) {
+		const response = await record.responseReady;
+		await cache.put(record.request, response);
+	}
+
+	event.waitUntil(
+		self.registration.showNotification('Загрузка завершена', {
+			body: 'Ваши файлы загружены!',
+			icon: '/icon.png',
+		}),
+	);
+});
+
+self.addEventListener('backgroundfetchfail', (event) => {
+	console.log('Фоновая загрузка не удалась:', event.registration.id);
+});

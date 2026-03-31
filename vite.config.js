@@ -10,7 +10,13 @@ export default defineConfig({
 				enabled: true,
 				type: 'module',
 			},
+			strategies: 'injectManifest',
+			srcDir: 'src',
+			filename: 'sw.js',
 			registerType: 'autoUpdate',
+			injectManifest: {
+				globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+			},
 			manifest: {
 				name: 'Test PWA App',
 				short_name: 'PWA app for test',
@@ -23,25 +29,13 @@ export default defineConfig({
 						src: 'pwa-192.png',
 						sizes: '192x192',
 						type: 'image/png',
+						purpose: 'any maskable',
 					},
 					{
 						src: 'pwa-512.png',
 						sizes: '512x512',
 						type: 'image/png',
-					},
-				],
-			},
-			workbox: {
-				navigateFallback: 'index.html',
-				runtimeCaching: [
-					{
-						urlPattern: ({ url }) => url.href === 'https://jsonplaceholder.typicode.com/users/1/posts',
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'users-posts-cache',
-							networkTimeoutSeconds: 3,
-							expiration: { maxEntries: 50, maxAgeSeconds: 5 * 60 },
-						},
+						purpose: 'any maskable',
 					},
 				],
 			},

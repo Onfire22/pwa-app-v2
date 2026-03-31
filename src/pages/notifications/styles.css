@@ -1,0 +1,21 @@
+.notifications {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 20px;
+}
+
+.notifications__button {
+	padding: 10px 5px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+}
+
+.notifications__button_success {
+	background-color: var(--green);
+}
+
+.notifications__button_error {
+	background-color: var(--red);
+}
