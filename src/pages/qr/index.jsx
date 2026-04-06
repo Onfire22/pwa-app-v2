@@ -1,87 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
-import jsQR from 'jsqr';
+import { useBarcodeScanner } from '../../shared/hooks.js';
 import './styles.css';
 
 const Qr = () => {
-	const videoRef = useRef(null);
-	const canvasRef = useRef(null);
-	const streamRef = useRef(null);
-	const animationRef = useRef(null);
-	const [result, setResult] = useState(null);
-	const [active, setActive] = useState(false);
+	const camRef = useRef(null);
+	const [isVideoShown, setIsVideoShown] = useState(false);
 
-	const start = () => {
-		navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((stream) => {
-			streamRef.current = stream;
-			if (videoRef.current) {
-				videoRef.current.srcObject = stream;
-				videoRef.current.play();
-				setActive(true);
+	const { codes, startBarcodeScanner } = useBarcodeScanner();
 
-				videoRef.current.addEventListener(
-					'loadeddata',
-					() => {
-						animationRef.current = requestAnimationFrame(scan);
-					},
-					{ once: true },
-				);
-			}
-		});
+	const handleStartVideo = () => {
+		setIsVideoShown(true);
 	};
 
-	const stop = () => {
-		streamRef.current?.getTracks().forEach((track) => track.stop());
-		streamRef.current = null;
-
-		if (animationRef.current) {
-			cancelAnimationFrame(animationRef.current);
-			animationRef.current = null;
+	const handleCloseVideo = () => {
+		setIsVideoShown(false);
+		if (camRef.current) {
+			camRef.current.pause();
+			camRef.current.srcObject?.getTracks().forEach((track) => track.stop());
+			camRef.current.srcObject = null;
 		}
-
-		if (videoRef.current) {
-			videoRef.current.srcObject = null;
-		}
-
-		setActive(false);
 	};
 
 	useEffect(() => {
-		return () => stop();
-	}, []);
-
-	const scan = () => {
-		const video = videoRef.current;
-		const canvas = canvasRef.current;
-		if (!video || !canvas) return;
-
-		if (video.videoWidth === 0 || video.videoHeight === 0) {
-			animationRef.current = requestAnimationFrame(scan);
-			return;
+		if (isVideoShown && camRef.current) {
+			startBarcodeScanner(camRef.current, setIsVideoShown);
 		}
-
-		const ctx = canvas.getContext('2d', { willReadFrequently: true });
-		canvas.width = video.videoWidth;
-		canvas.height = video.videoHeight;
-		ctx.drawImage(video, 0, 0);
-
-		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-		if (code) {
-			setResult(code.data);
-			stop();
-		} else {
-			animationRef.current = requestAnimationFrame(scan);
-		}
-	};
+	}, [isVideoShown]);
 
 	return (
 		<div className="qr">
-			<video className={active ? '' : 'qr__scanner'} ref={videoRef} style={{ width: '100%' }} />
-			<canvas ref={canvasRef} style={{ display: 'none' }} />
-			{result && <p>Результат: {result}</p>}
-			<button className="qr__button" onClick={active ? stop : start}>
-				{active ? 'Остановить' : 'Сканировать'}
+			{isVideoShown && (
+				<div className="camera">
+					<video className="video" ref={camRef} playsInline muted />
+				</div>
+			)}
+			<button className="qr__button" onClick={isVideoShown ? handleCloseVideo : handleStartVideo}>
+				{isVideoShown ? 'Остановить' : 'Сканировать'}
 			</button>
 		</div>
 	);
