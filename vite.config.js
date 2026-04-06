@@ -22,8 +22,8 @@ export default defineConfig({
 				short_name: 'PWA app for test',
 				start_url: '/',
 				display: 'standalone',
-				background_color: '#ffffff',
-				theme_color: '#000000',
+				background_color: '#16171d',
+				theme_color: '#ffffff',
 				icons: [
 					{
 						src: 'pwa-192.png',
