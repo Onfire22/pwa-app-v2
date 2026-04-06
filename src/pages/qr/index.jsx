@@ -17,7 +17,14 @@ const Qr = () => {
 				videoRef.current.srcObject = stream;
 				videoRef.current.play();
 				setActive(true);
-				animationRef.current = requestAnimationFrame(scan);
+
+				videoRef.current.addEventListener(
+					'loadeddata',
+					() => {
+						animationRef.current = requestAnimationFrame(scan);
+					},
+					{ once: true },
+				);
 			}
 		});
 	};
@@ -47,7 +54,12 @@ const Qr = () => {
 		const canvas = canvasRef.current;
 		if (!video || !canvas) return;
 
-		const ctx = canvas.getContext('2d');
+		if (video.videoWidth === 0 || video.videoHeight === 0) {
+			animationRef.current = requestAnimationFrame(scan);
+			return;
+		}
+
+		const ctx = canvas.getContext('2d', { willReadFrequently: true });
 		canvas.width = video.videoWidth;
 		canvas.height = video.videoHeight;
 		ctx.drawImage(video, 0, 0);
