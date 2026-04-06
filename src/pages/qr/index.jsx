@@ -37,6 +37,18 @@ const Qr = () => {
 			<button className="qr__button" onClick={isVideoShown ? handleCloseVideo : handleStartVideo}>
 				{isVideoShown ? 'Остановить' : 'Сканировать'}
 			</button>
+			<div className="qr_codes">
+				<h3>Найденные QR-коды:</h3>
+				{codes.length > 0 ? (
+					codes.map((code, index) => (
+						<p className="qr_code" key={index}>
+							{code.rawValue}
+						</p>
+					))
+				) : (
+					<p>Нет данных</p>
+				)}
+			</div>
 		</div>
 	);
 };
